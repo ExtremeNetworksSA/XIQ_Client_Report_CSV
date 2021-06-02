@@ -93,6 +93,7 @@ monthstr += " {}".format(yearset[-1])
 
 # Used for start and end times off to the side of report
 timeset = set(timelist)
+#timeset = sorted(timeset, key=lambda timeset: datetime.datetime.strptime(timeset, '%m/%d/%y %H:%M'))
 timeset = sorted(timeset, key=lambda timeset: datetime.datetime.strptime(timeset, '%Y-%m-%d %H:%M:%S'))
 
 
