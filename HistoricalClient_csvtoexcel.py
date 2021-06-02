@@ -66,11 +66,13 @@ for row in data.values():
     child[row['sublocation']]['session_count'] += 1
     child[row['sublocation']]['unique_count'].append(row['device_mac'])
     start_time = row['start_time']
-    start_time = datetime.datetime.strptime(start_time, '%m/%d/%y %H:%M')
+    #start_time = datetime.datetime.strptime(start_time, '%m/%d/%y %H:%M')
+    start_time = datetime.datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
     monthlist.append(start_time.strftime('%B'))
     yearlist.append(start_time.strftime('%Y'))
     end_time = row['end_time']
-    end_time = datetime.datetime.strptime(end_time, '%m/%d/%y %H:%M')
+    #end_time = datetime.datetime.strptime(end_time, '%m/%d/%y %H:%M')
+    end_time = datetime.datetime.strptime(end_time, '%Y-%m-%d %H:%M:%S')
     connected_time = (end_time - start_time).total_seconds()
     child[row['sublocation']]['connected_time'] += int(connected_time)
 
@@ -83,7 +85,7 @@ monthset = sorted(monthset, key=lambda monthset: datetime.datetime.strptime(mont
 yearset = set(yearlist)
 yearset = sorted(yearset, key=lambda yearset: datetime.datetime.strptime(yearset, "%Y"))
 monthstr = ''
-monthstr += "{} -".format(month[-1])
+monthstr += "{} -".format(monthset[-1])
 monthstr += " {}".format(yearset[-1])
 
 print("creating excel report")

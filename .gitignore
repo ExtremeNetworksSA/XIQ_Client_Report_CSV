@@ -7,3 +7,6 @@
 /venv
 /venv2
 /~$test_report.xlsx
+SC-LAB_Report-wifi-client.csv
+.gitignore
+site_report.xlsx
