@@ -40,6 +40,7 @@ def csv_import(filename):
 
 
 client_list = csv_import(filename)
+print('gathering data from csv')
 
 df = pd.DataFrame(client_list)
 del df['client_ip']
@@ -51,6 +52,7 @@ del df['bssid']
 data = df.to_dict('index')
 monthlist = []
 yearlist = []
+timelist = []
 parent = {}
 child = {}
 for row in data.values():
@@ -66,6 +68,7 @@ for row in data.values():
     child[row['sublocation']]['session_count'] += 1
     child[row['sublocation']]['unique_count'].append(row['device_mac'])
     start_time = row['start_time']
+    timelist.append(start_time)
     #start_time = datetime.datetime.strptime(start_time, '%m/%d/%y %H:%M')
     start_time = datetime.datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
     monthlist.append(start_time.strftime('%B'))
@@ -87,6 +90,11 @@ yearset = sorted(yearset, key=lambda yearset: datetime.datetime.strptime(yearset
 monthstr = ''
 monthstr += "{} -".format(monthset[-1])
 monthstr += " {}".format(yearset[-1])
+
+# Used for start and end times off to the side of report
+timeset = set(timelist)
+timeset = sorted(timeset, key=lambda timeset: datetime.datetime.strptime(timeset, '%Y-%m-%d %H:%M:%S'))
+
 
 print("creating excel report")
 workbook = xlsxwriter.Workbook('site_report.xlsx')
@@ -167,6 +175,9 @@ sub_site_location_format = workbook.add_format({
     'align':'left',
     'font_size': 10
 })
+bold_only_format = workbook.add_format({
+    'bold': 1
+})
 # Merge cells on row 1.
 worksheet.merge_range('A1:E1', '{} - WiFi Statistics Summary Report'.format(monthstr), merge_format)
 worksheet.merge_range('A2:A7','{}'.format(sitename),Label_format)
@@ -183,6 +194,13 @@ worksheet.write('B8', 'Number of Sessions', header_format)
 worksheet.write('C8', 'Number or Users', header_format)
 worksheet.write('D8', 'Sum of Time (hours)', header_format)
 worksheet.write('E8', 'Sum of Time (minutes)', header_format)
+
+# Print Start and End times off to the side of the Report
+worksheet.write('G3', 'Time Stamps from Client Summary', bold_only_format)
+worksheet.write('G4', 'Start time:')
+worksheet.write('H4', ' {}'.format(timeset[0]))
+worksheet.write('G5', 'End time:')
+worksheet.write('H5',' {}'.format(timeset[-1]))
 
 cursor_line = 8
 main_site_list = []
