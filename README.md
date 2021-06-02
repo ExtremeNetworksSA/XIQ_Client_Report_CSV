@@ -3,7 +3,7 @@
 
 ## Requirements
 
-This script was written to use python version 2.7 that comes installed default with mac os. To preform the needed tasks to read the csv and and export to excel a couple modules will need to be installed.  
+This script was written to work with python version 2.7 that comes installed default with mac os as well as the new version of python 3.9 if installed manually. To preform the needed tasks to read the csv and and export to excel a couple modules will need to be installed.  
 These modules are needed in order to run this script. Please see the Setup Section at the bottom for instructions on installing the needed module. 
 
 When running the script, two arguments need to be give
