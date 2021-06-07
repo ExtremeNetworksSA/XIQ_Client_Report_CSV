@@ -12,5 +12,6 @@ SC-LAB_Report-wifi-client.csv
 site_report.xlsx
 HistoricalClient_csvtoexcel.py
 WifiStatsSummarySample.csv
+~$site_report.xlsx
 WifiStatsSummarySample.xlsx
 ~$WifiStatsSummarySample.xlsx

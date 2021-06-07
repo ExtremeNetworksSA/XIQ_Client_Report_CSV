@@ -1,6 +1,7 @@
 from __future__ import division
 import csv
 import os
+import operator
 import datetime
 import xlsxwriter
 import argparse
@@ -55,6 +56,7 @@ yearlist = []
 timelist = []
 parent = {}
 child = {}
+ssids = {}
 for row in data.values():
     if row['location'] not in parent:
         parent[row['location']] = []
@@ -78,10 +80,18 @@ for row in data.values():
     end_time = datetime.datetime.strptime(end_time, '%Y-%m-%d %H:%M:%S')
     connected_time = (end_time - start_time).total_seconds()
     child[row['sublocation']]['connected_time'] += int(connected_time)
+    if row['ssid'] not in ssids:
+        ssids[row['ssid']] = []
+    ssids[row['ssid']].append(row['client_mac'])
 
 for loc in child:
     set_list = set(child[loc]['unique_count'])
     child[loc]['unique_count'] = len(set_list)
+
+for ssid in ssids:
+    set_list = set(ssids[ssid])
+    ssids[ssid]=len(set_list)
+
 
 monthset = set(monthlist)
 monthset = sorted(monthset, key=lambda monthset: datetime.datetime.strptime(monthset, "%B"))
@@ -111,6 +121,7 @@ worksheet.set_row(3, 13)
 worksheet.set_row(4, 13)
 worksheet.set_row(5, 13)
 worksheet.set_row(6, 13)
+worksheet.set_column('K:L', None, None, {'hidden': True})
 
 # Create a format to use in the merged range.
 merge_format = workbook.add_format({
@@ -181,6 +192,7 @@ sub_site_location_format = workbook.add_format({
 bold_only_format = workbook.add_format({
     'bold': 1
 })
+
 # Merge cells on row 1.
 worksheet.merge_range('A1:E1', '{} - WiFi Statistics Summary Report'.format(monthstr), merge_format)
 worksheet.merge_range('A2:A7','{}'.format(sitename),Label_format)
@@ -206,6 +218,7 @@ worksheet.write('G5', 'End time:')
 worksheet.write('H5',' {}'.format(timeset[-1]))
 
 cursor_line = 8
+
 main_site_list = []
 for name, locations in sorted (parent.items()):
     main_session_count = 0
@@ -244,5 +257,34 @@ worksheet.write('D6', '=SUM({})'.format(mainb), sub_site_format)
 # Sum of Time (minutes) Total
 mainb = main_site_str.replace('<Column>','E')
 worksheet.write('E6', '=SUM({})'.format(mainb), sub_site_format)
+
+#print("There are {} unique clients".format(sum(ssids.values())))
+sorted_ssids = sorted(ssids.items(), key=operator.itemgetter(1), reverse=True)
+cursor_line += 5
+worksheet.merge_range('A{}:E{}'.format(cursor_line,cursor_line), 'Unique Clients by SSID', merge_format)
+ssidline = cursor_line
+other_total = 0
+if len(sorted_ssids) > 9:
+    worksheet.write('A{}'.format(cursor_line), 'Unique Clients by SSID (Top 10)', merge_format)
+    for x in range(len(sorted_ssids)-1, 9, -1):
+        other_total += sorted_ssids[x][1]
+        sorted_ssids.remove(sorted_ssids[x])
+    sorted_ssids.append(tuple(('OTHER SSIDs', other_total)))
+for ssid in sorted_ssids:
+    worksheet.write('K{}'.format(ssidline),'{} - {:,}'.format(ssid[0], ssid[1]))
+    worksheet.write('L{}'.format(ssidline),ssid[1])
+    ssidline+=1
+
+# Create a chart object.
+chart = workbook.add_chart({'type': 'pie'})
+chart.show_hidden_data()
+chart.add_series({
+    'categories': '=Report!$K${}:$K${}'.format(cursor_line,cursor_line+len(sorted_ssids)-1),
+    'values':     '=Report!$L${}:$L${}'.format(cursor_line,cursor_line+len(sorted_ssids)-1),
+})
+cursor_line += 1
+chart.set_style(10)
+chart.set_size({'width': 540, 'height': 432})
+worksheet.insert_chart('A{}'.format(cursor_line), chart, {'x_offset': 25, 'y_offset': 15})
 workbook.close()
 print("completed")
