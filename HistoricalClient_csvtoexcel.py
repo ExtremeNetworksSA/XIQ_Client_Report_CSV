@@ -1,6 +1,7 @@
 from __future__ import division
 import csv
 import os
+import operator
 import datetime
 import xlsxwriter
 import argparse
@@ -38,9 +39,9 @@ def csv_import(filename):
             client_list.append(data)
         return client_list
 
-
-client_list = csv_import(filename)
 print('gathering data from csv')
+client_list = csv_import(filename)
+print('processing data')
 
 df = pd.DataFrame(client_list)
 del df['client_ip']
@@ -67,7 +68,7 @@ for row in data.values():
         child[row['sublocation']]['unique_count'] = []
         child[row['sublocation']]['connected_time'] = 0
     child[row['sublocation']]['session_count'] += 1
-    child[row['sublocation']]['unique_count'].append(row['device_mac'])
+    child[row['sublocation']]['unique_count'].append(row['client_mac'])
     start_time = row['start_time']
     timelist.append(start_time)
     #start_time = datetime.datetime.strptime(start_time, '%m/%d/%y %H:%M')
@@ -81,7 +82,7 @@ for row in data.values():
     child[row['sublocation']]['connected_time'] += int(connected_time)
     if row['ssid'] not in ssids:
         ssids[row['ssid']] = []
-    ssids[row['ssid']].append(row['device_mac'])
+    ssids[row['ssid']].append(row['client_mac'])
 
 for loc in child:
     set_list = set(child[loc]['unique_count'])
@@ -107,7 +108,8 @@ timeset = sorted(timeset, key=lambda timeset: datetime.datetime.strptime(timeset
 
 
 print("creating excel report")
-workbook = xlsxwriter.Workbook('site_report.xlsx')
+excelname = os.path.splitext(filename)[0]
+workbook = xlsxwriter.Workbook('{}}.xlsx'.format(excelname))
 workbook.set_size(1600, 2000)
 worksheet = workbook.add_worksheet('Report')
 # Widen the first column to make the text clearer.
@@ -119,7 +121,7 @@ worksheet.set_row(3, 13)
 worksheet.set_row(4, 13)
 worksheet.set_row(5, 13)
 worksheet.set_row(6, 13)
-
+worksheet.set_column('K:L', None, None, {'hidden': True})
 
 # Create a format to use in the merged range.
 merge_format = workbook.add_format({
@@ -216,8 +218,9 @@ worksheet.write('G5', 'End time:')
 worksheet.write('H5',' {}'.format(timeset[-1]))
 
 cursor_line = 8
+
 main_site_list = []
-for name, locations in parent.items():
+for name, locations in sorted (parent.items()):
     main_session_count = 0
     main_unique_count = 0
     main_connected_time = 0
@@ -229,7 +232,7 @@ for name, locations in parent.items():
     main_site_list.append(cursor_line)
     worksheet.write('A{}'.format(cursor_line), "    {}".format(name), main_site_location_format)
     worksheet.write('B{}'.format(cursor_line), main_session_count, main_site_format)
-    worksheet.write('C{}'.format(cursor_line), main_session_count, main_site_format)
+    worksheet.write('C{}'.format(cursor_line), main_unique_count, main_site_format)
     worksheet.write('D{}'.format(cursor_line), round(main_connected_time/3600), main_site_format)
     worksheet.write('E{}'.format(cursor_line), round(main_connected_time/60), main_site_format)
     for site in locations:
@@ -254,22 +257,34 @@ worksheet.write('D6', '=SUM({})'.format(mainb), sub_site_format)
 # Sum of Time (minutes) Total
 mainb = main_site_str.replace('<Column>','E')
 worksheet.write('E6', '=SUM({})'.format(mainb), sub_site_format)
+
+#print("There are {} unique clients".format(sum(ssids.values())))
+sorted_ssids = sorted(ssids.items(), key=operator.itemgetter(1), reverse=True)
 cursor_line += 5
 worksheet.merge_range('A{}:E{}'.format(cursor_line,cursor_line), 'Unique Clients by SSID', merge_format)
-cursor_line += 1
 ssidline = cursor_line
-for ssid in ssids:
-    worksheet.write('K{}'.format(ssidline),'{} - {}'.format(ssid, ssids[ssid]))
-    worksheet.write('L{}'.format(ssidline),ssids[ssid])
+other_total = 0
+if len(sorted_ssids) > 9:
+    worksheet.write('A{}'.format(cursor_line), 'Unique Clients by SSID (Top 10)', merge_format)
+    for x in range(len(sorted_ssids)-1, 9, -1):
+        other_total += sorted_ssids[x][1]
+        sorted_ssids.remove(sorted_ssids[x])
+    sorted_ssids.append(tuple(('OTHER SSIDs', other_total)))
+for ssid in sorted_ssids:
+    worksheet.write('K{}'.format(ssidline),'{} - {:,}'.format(ssid[0], ssid[1]))
+    worksheet.write('L{}'.format(ssidline),ssid[1])
     ssidline+=1
 
 # Create a chart object.
 chart = workbook.add_chart({'type': 'pie'})
+chart.show_hidden_data()
 chart.add_series({
-    'categories': '=Report!$K${}:$K${}'.format(cursor_line,cursor_line+len(ssids)-1),
-    'values':     '=Report!$L${}:$L${}'.format(cursor_line,cursor_line+len(ssids)-1),
+    'categories': '=Report!$K${}:$K${}'.format(cursor_line,cursor_line+len(sorted_ssids)-1),
+    'values':     '=Report!$L${}:$L${}'.format(cursor_line,cursor_line+len(sorted_ssids)-1),
 })
+cursor_line += 1
 chart.set_style(10)
-worksheet.insert_chart('A{}'.format(cursor_line), chart, {'x_offset': 65, 'y_offset': 15})
+chart.set_size({'width': 540, 'height': 432})
+worksheet.insert_chart('A{}'.format(cursor_line), chart, {'x_offset': 25, 'y_offset': 15})
 workbook.close()
 print("completed")
