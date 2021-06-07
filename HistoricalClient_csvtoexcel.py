@@ -109,7 +109,7 @@ timeset = sorted(timeset, key=lambda timeset: datetime.datetime.strptime(timeset
 
 print("creating excel report")
 excelname = os.path.splitext(filename)[0]
-workbook = xlsxwriter.Workbook('{}}.xlsx'.format(excelname))
+workbook = xlsxwriter.Workbook('{}.xlsx'.format(excelname))
 workbook.set_size(1600, 2000)
 worksheet = workbook.add_worksheet('Report')
 # Widen the first column to make the text clearer.
