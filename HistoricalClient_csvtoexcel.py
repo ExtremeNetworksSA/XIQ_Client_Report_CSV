@@ -38,9 +38,9 @@ def csv_import(filename):
             client_list.append(data)
         return client_list
 
-
-client_list = csv_import(filename)
 print('gathering data from csv')
+client_list = csv_import(filename)
+print('processing data')
 
 df = pd.DataFrame(client_list)
 del df['client_ip']
@@ -66,7 +66,7 @@ for row in data.values():
         child[row['sublocation']]['unique_count'] = []
         child[row['sublocation']]['connected_time'] = 0
     child[row['sublocation']]['session_count'] += 1
-    child[row['sublocation']]['unique_count'].append(row['device_mac'])
+    child[row['sublocation']]['unique_count'].append(row['client_mac'])
     start_time = row['start_time']
     timelist.append(start_time)
     #start_time = datetime.datetime.strptime(start_time, '%m/%d/%y %H:%M')
@@ -98,7 +98,9 @@ timeset = sorted(timeset, key=lambda timeset: datetime.datetime.strptime(timeset
 
 
 print("creating excel report")
-workbook = xlsxwriter.Workbook('site_report.xlsx')
+excelname = os.path.splitext(filename)[0]
+workbook = xlsxwriter.Workbook('{}.xlsx'.format(excelname))
+workbook.set_size(1600, 2000)
 worksheet = workbook.add_worksheet('Report')
 # Widen the first column to make the text clearer.
 worksheet.set_column('A:A', 20.5)
@@ -205,7 +207,7 @@ worksheet.write('H5',' {}'.format(timeset[-1]))
 
 cursor_line = 8
 main_site_list = []
-for name, locations in parent.items():
+for name, locations in sorted (parent.items()):
     main_session_count = 0
     main_unique_count = 0
     main_connected_time = 0
@@ -217,7 +219,7 @@ for name, locations in parent.items():
     main_site_list.append(cursor_line)
     worksheet.write('A{}'.format(cursor_line), "    {}".format(name), main_site_location_format)
     worksheet.write('B{}'.format(cursor_line), main_session_count, main_site_format)
-    worksheet.write('C{}'.format(cursor_line), main_session_count, main_site_format)
+    worksheet.write('C{}'.format(cursor_line), main_unique_count, main_site_format)
     worksheet.write('D{}'.format(cursor_line), round(main_connected_time/3600), main_site_format)
     worksheet.write('E{}'.format(cursor_line), round(main_connected_time/60), main_site_format)
     for site in locations:
