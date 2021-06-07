@@ -55,6 +55,7 @@ yearlist = []
 timelist = []
 parent = {}
 child = {}
+ssids = {}
 for row in data.values():
     if row['location'] not in parent:
         parent[row['location']] = []
@@ -78,10 +79,18 @@ for row in data.values():
     end_time = datetime.datetime.strptime(end_time, '%Y-%m-%d %H:%M:%S')
     connected_time = (end_time - start_time).total_seconds()
     child[row['sublocation']]['connected_time'] += int(connected_time)
+    if row['ssid'] not in ssids:
+        ssids[row['ssid']] = []
+    ssids[row['ssid']].append(row['device_mac'])
 
 for loc in child:
     set_list = set(child[loc]['unique_count'])
     child[loc]['unique_count'] = len(set_list)
+
+for ssid in ssids:
+    set_list = set(ssids[ssid])
+    ssids[ssid]=len(set_list)
+
 
 monthset = set(monthlist)
 monthset = sorted(monthset, key=lambda monthset: datetime.datetime.strptime(monthset, "%B"))
@@ -99,6 +108,7 @@ timeset = sorted(timeset, key=lambda timeset: datetime.datetime.strptime(timeset
 
 print("creating excel report")
 workbook = xlsxwriter.Workbook('site_report.xlsx')
+workbook.set_size(1600, 2000)
 worksheet = workbook.add_worksheet('Report')
 # Widen the first column to make the text clearer.
 worksheet.set_column('A:A', 20.5)
@@ -109,6 +119,7 @@ worksheet.set_row(3, 13)
 worksheet.set_row(4, 13)
 worksheet.set_row(5, 13)
 worksheet.set_row(6, 13)
+
 
 # Create a format to use in the merged range.
 merge_format = workbook.add_format({
@@ -179,6 +190,7 @@ sub_site_location_format = workbook.add_format({
 bold_only_format = workbook.add_format({
     'bold': 1
 })
+
 # Merge cells on row 1.
 worksheet.merge_range('A1:E1', '{} - WiFi Statistics Summary Report'.format(monthstr), merge_format)
 worksheet.merge_range('A2:A7','{}'.format(sitename),Label_format)
@@ -242,5 +254,22 @@ worksheet.write('D6', '=SUM({})'.format(mainb), sub_site_format)
 # Sum of Time (minutes) Total
 mainb = main_site_str.replace('<Column>','E')
 worksheet.write('E6', '=SUM({})'.format(mainb), sub_site_format)
+cursor_line += 5
+worksheet.merge_range('A{}:E{}'.format(cursor_line,cursor_line), 'Unique Clients by SSID', merge_format)
+cursor_line += 1
+ssidline = cursor_line
+for ssid in ssids:
+    worksheet.write('K{}'.format(ssidline),'{} - {}'.format(ssid, ssids[ssid]))
+    worksheet.write('L{}'.format(ssidline),ssids[ssid])
+    ssidline+=1
+
+# Create a chart object.
+chart = workbook.add_chart({'type': 'pie'})
+chart.add_series({
+    'categories': '=Report!$K${}:$K${}'.format(cursor_line,cursor_line+len(ssids)-1),
+    'values':     '=Report!$L${}:$L${}'.format(cursor_line,cursor_line+len(ssids)-1),
+})
+chart.set_style(10)
+worksheet.insert_chart('A{}'.format(cursor_line), chart, {'x_offset': 65, 'y_offset': 15})
 workbook.close()
 print("completed")
