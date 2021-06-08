@@ -58,17 +58,21 @@ parent = {}
 child = {}
 ssids = {}
 for row in data.values():
-    if row['location'] not in parent:
-        parent[row['location']] = []
-    if row['sublocation'] not in parent[row['location']]:
-        parent[row['location']].append(row['sublocation'])
-    if row['sublocation'] not in child:
-        child[row['sublocation']]={}
-        child[row['sublocation']]['session_count'] = 0
-        child[row['sublocation']]['unique_count'] = []
-        child[row['sublocation']]['connected_time'] = 0
-    child[row['sublocation']]['session_count'] += 1
-    child[row['sublocation']]['unique_count'].append(row['client_mac'])
+    mainloc = row['location']
+    subloc = row['sublocation']
+    if mainloc not in parent:
+        parent[mainloc] = []
+    if subloc not in parent[mainloc]:
+        parent[mainloc].append(subloc)
+    if mainloc not in child:
+        child[mainloc]={}
+    if subloc not in child[mainloc]:
+        child[mainloc][subloc] = {}
+        child[mainloc][subloc]['session_count'] = 0
+        child[mainloc][subloc]['unique_count'] = []
+        child[mainloc][subloc]['connected_time'] = 0
+    child[mainloc][subloc]['session_count'] += 1
+    child[mainloc][subloc]['unique_count'].append(row['client_mac'])
     start_time = row['start_time']
     timelist.append(start_time)
     #start_time = datetime.datetime.strptime(start_time, '%m/%d/%y %H:%M')
@@ -79,20 +83,21 @@ for row in data.values():
     #end_time = datetime.datetime.strptime(end_time, '%m/%d/%y %H:%M')
     end_time = datetime.datetime.strptime(end_time, '%Y-%m-%d %H:%M:%S')
     connected_time = (end_time - start_time).total_seconds()
-    child[row['sublocation']]['connected_time'] += int(connected_time)
+    child[mainloc][subloc]['connected_time'] += int(connected_time)
     if row['ssid'] not in ssids:
         ssids[row['ssid']] = []
     ssids[row['ssid']].append(row['client_mac'])
 
-for loc in child:
-    set_list = set(child[loc]['unique_count'])
-    child[loc]['unique_count'] = len(set_list)
+for mainloc in child:
+    for subloc in child[mainloc]:
+        set_list = set(child[mainloc][subloc]['unique_count'])
+        child[mainloc][subloc]['unique_count'] = len(set_list)
 
 for ssid in ssids:
     set_list = set(ssids[ssid])
     ssids[ssid]=len(set_list)
 
-
+'''
 monthset = set(monthlist)
 monthset = sorted(monthset, key=lambda monthset: datetime.datetime.strptime(monthset, "%B"))
 yearset = set(yearlist)
@@ -100,7 +105,8 @@ yearset = sorted(yearset, key=lambda yearset: datetime.datetime.strptime(yearset
 monthstr = ''
 monthstr += "{} -".format(monthset[-1])
 monthstr += " {}".format(yearset[-1])
-
+'''
+monthstr = "{} - {}".format(max(set(monthlist), key= monthlist.count), max(set(yearlist), key= yearlist.count))
 # Used for start and end times off to the side of report
 timeset = set(timelist)
 #timeset = sorted(timeset, key=lambda timeset: datetime.datetime.strptime(timeset, '%m/%d/%y %H:%M'))
@@ -109,12 +115,14 @@ timeset = sorted(timeset, key=lambda timeset: datetime.datetime.strptime(timeset
 
 print("creating excel report")
 excelname = os.path.splitext(filename)[0]
-workbook = xlsxwriter.Workbook('{}.xlsx'.format(excelname))
+excelname += '.xlsx'
+workbook = xlsxwriter.Workbook('{}'.format(excelname))
 workbook.set_size(1600, 2000)
 worksheet = workbook.add_worksheet('Report')
 # Widen the first column to make the text clearer.
 worksheet.set_column('A:A', 20.5)
 worksheet.set_column('B:F', 14.8)
+worksheet.set_column('K:N', 22)
 worksheet.set_row(1, 13)
 worksheet.set_row(2, 13)
 worksheet.set_row(3, 13)
@@ -225,9 +233,9 @@ for name, locations in sorted (parent.items()):
     main_unique_count = 0
     main_connected_time = 0
     for site in locations:
-        main_session_count += child[site]['session_count']
-        main_unique_count += child[site]['unique_count']
-        main_connected_time += child[site]['connected_time']
+        main_session_count += child[name][site]['session_count']
+        main_unique_count += child[name][site]['unique_count']
+        main_connected_time += child[name][site]['connected_time']
     cursor_line += 1
     main_site_list.append(cursor_line)
     worksheet.write('A{}'.format(cursor_line), "    {}".format(name), main_site_location_format)
@@ -238,10 +246,10 @@ for name, locations in sorted (parent.items()):
     for site in locations:
         cursor_line += 1
         worksheet.write('A{}'.format(cursor_line), "        {}".format(site), sub_site_location_format)
-        worksheet.write('B{}'.format(cursor_line), child[site]['session_count'], sub_site_format)
-        worksheet.write('C{}'.format(cursor_line), child[site]['unique_count'], sub_site_format)
-        worksheet.write('D{}'.format(cursor_line), round(child[site]['connected_time']/3600), sub_site_format)
-        worksheet.write('E{}'.format(cursor_line), round(child[site]['connected_time']/60), sub_site_format)
+        worksheet.write('B{}'.format(cursor_line), child[name][site]['session_count'], sub_site_format)
+        worksheet.write('C{}'.format(cursor_line), child[name][site]['unique_count'], sub_site_format)
+        worksheet.write('D{}'.format(cursor_line), round(child[name][site]['connected_time']/3600), sub_site_format)
+        worksheet.write('E{}'.format(cursor_line), round(child[name][site]['connected_time']/60), sub_site_format)
 main_site_str = ''
 for row in main_site_list:
     main_site_str += '<Column>{},'.format(row)
@@ -263,11 +271,16 @@ sorted_ssids = sorted(ssids.items(), key=operator.itemgetter(1), reverse=True)
 cursor_line += 5
 worksheet.merge_range('A{}:E{}'.format(cursor_line,cursor_line), 'Unique Clients by SSID', merge_format)
 ssidline = cursor_line
+otherline = ssidline -1
 other_total = 0
 if len(sorted_ssids) > 9:
     worksheet.write('A{}'.format(cursor_line), 'Unique Clients by SSID (Top 10)', merge_format)
+    worksheet.write('M{}'.format(otherline), 'OTHER SSIDs', bold_format)
     for x in range(len(sorted_ssids)-1, 9, -1):
+        otherline += 1
         other_total += sorted_ssids[x][1]
+        worksheet.write('M{}'.format(otherline),'{} - {:,}'.format(sorted_ssids[x][0], sorted_ssids[x][1]))
+        worksheet.write('N{}'.format(otherline),sorted_ssids[x][1])
         sorted_ssids.remove(sorted_ssids[x])
     sorted_ssids.append(tuple(('OTHER SSIDs', other_total)))
 for ssid in sorted_ssids:
@@ -287,4 +300,4 @@ chart.set_style(10)
 chart.set_size({'width': 540, 'height': 432})
 worksheet.insert_chart('A{}'.format(cursor_line), chart, {'x_offset': 25, 'y_offset': 15})
 workbook.close()
-print("completed")
+print("completed - saved as {}".format(excelname))
