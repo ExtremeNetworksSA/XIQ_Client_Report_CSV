@@ -24,9 +24,9 @@ PATH = os.path.dirname(os.path.abspath(__file__))
 def csv_import(filename):
     with open(filename, 'r') as file:
         reader = csv.reader(file, delimiter=',')
-        # remove header line from CSV
-        next(reader)
-        next(reader)
+        # remove header line from CSV if manually ran
+        #next(reader)
+        #next(reader)
         loc_params = next(reader)
         # Build list of location dictionaries
         client_list = []
