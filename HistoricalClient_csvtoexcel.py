@@ -206,20 +206,18 @@ worksheet.merge_range('A1:E1', '{} - WiFi Statistics Summary Report'.format(mont
 worksheet.merge_range('A2:A7','{}'.format(sitename),Label_format)
 worksheet.merge_range('B2:E2','')
 #worksheet.write_url('B2', 'http://www.library.ca.gov/Content/pdf/services/toLibraries/SurveyInstructions2017-18.pdf', centered_hyp_format)
-worksheet.write('C4', 'Client User Summary',bold_format)
-worksheet.write('C5', 'Number of Sessions', bottom_border_title)
-worksheet.write('D5', 'Number of Users', bottom_border_title)
-#worksheet.write('D5', 'Sum of Time (hours)', bottom_border_title)
-#worksheet.write('E5', 'Sum of Time (minutes)', bottom_border_title)
+worksheet.write('B4', 'Client User Summary',bold_format)
+worksheet.write('B5', 'Number of Sessions', bottom_border_title)
+worksheet.write('C5', 'Number of Users', bottom_border_title)
+worksheet.write('D5', 'Sum of Time (hours)', bottom_border_title)
+worksheet.write('E5', 'Sum of Time (minutes)', bottom_border_title)
 
 # Build Table header
 worksheet.write('A8', 'Locations', header_format)
-worksheet.write('B8', '', header_format ) # remove if adding client sum
-worksheet.write('C8', 'Number of Sessions', header_format) # change to B8 if adding client sum
-worksheet.write('D8', 'Number or Users', header_format) # change to C8 if adding client sum
-worksheet.write('E8', '', header_format) # remove if adding client sum
-#worksheet.write('D8', 'Sum of Time (hours)', header_format)
-#worksheet.write('E8', 'Sum of Time (minutes)', header_format)
+worksheet.write('B8', 'Number of Sessions', header_format)
+worksheet.write('C8', 'Number or Users', header_format)
+worksheet.write('D8', 'Sum of Time (hours)', header_format)
+worksheet.write('E8', 'Sum of Time (minutes)', header_format)
 
 # Print Start and End times off to the side of the Report
 worksheet.write('G3', 'Time Stamps from Client Summary', bold_only_format)
@@ -242,19 +240,17 @@ for name, locations in sorted (parent.items()):
     cursor_line += 1
     main_site_list.append(cursor_line)
     worksheet.write('A{}'.format(cursor_line), "    {}".format(name), main_site_location_format)
-    worksheet.write('B{}'.format(cursor_line), "", main_site_location_format)
-    worksheet.write('C{}'.format(cursor_line), main_session_count, main_site_format) # change to B{} if adding client sum
-    worksheet.write('D{}'.format(cursor_line), main_unique_count, main_site_format) # change to C{} if adding client sum
-    worksheet.write('E{}'.format(cursor_line), "", main_site_location_format)
-    #worksheet.write('D{}'.format(cursor_line), round(main_connected_time/3600), main_site_format)
-    #worksheet.write('E{}'.format(cursor_line), round(main_connected_time/60), main_site_format)
+    worksheet.write('B{}'.format(cursor_line), main_session_count, main_site_format)
+    worksheet.write('C{}'.format(cursor_line), main_unique_count, main_site_format)
+    worksheet.write('D{}'.format(cursor_line), round(main_connected_time/3600), main_site_format)
+    worksheet.write('E{}'.format(cursor_line), round(main_connected_time/60), main_site_format)
     for site in locations:
         cursor_line += 1
         worksheet.write('A{}'.format(cursor_line), "        {}".format(site), sub_site_location_format)
         worksheet.write('C{}'.format(cursor_line), child[name][site]['session_count'], sub_site_format) # change to B{} if adding client sum 
         worksheet.write('D{}'.format(cursor_line), child[name][site]['unique_count'], sub_site_format) # change to C{} if adding client sum
-        #worksheet.write('D{}'.format(cursor_line), round(child[name][site]['connected_time']/3600), sub_site_format)
-        #worksheet.write('E{}'.format(cursor_line), round(child[name][site]['connected_time']/60), sub_site_format)
+        worksheet.write('D{}'.format(cursor_line), round(child[name][site]['connected_time']/3600), sub_site_format)
+        worksheet.write('E{}'.format(cursor_line), round(child[name][site]['connected_time']/60), sub_site_format)
 main_site_str = ''
 for row in main_site_list:
     main_site_str += '<Column>{},'.format(row)
@@ -264,12 +260,12 @@ worksheet.write('C6', '=SUM({})'.format(mainb), sub_site_format) # change to Cs 
 # Number of Users Total
 mainb = main_site_str.replace('<Column>','D') # change to Ds to Cs if adding client sum
 worksheet.write('D6', '=SUM({})'.format(mainb), sub_site_format) # change to Ds to Cs if adding client sum
-## Sum of Time (hours) Total
-#mainb = main_site_str.replace('<Column>','D')
-#worksheet.write('D6', '=SUM({})'.format(mainb), sub_site_format)
-## Sum of Time (minutes) Total
-#mainb = main_site_str.replace('<Column>','E')
-#worksheet.write('E6', '=SUM({})'.format(mainb), sub_site_format)
+# Sum of Time (hours) Total
+mainb = main_site_str.replace('<Column>','D')
+worksheet.write('D6', '=SUM({})'.format(mainb), sub_site_format)
+# Sum of Time (minutes) Total
+mainb = main_site_str.replace('<Column>','E')
+worksheet.write('E6', '=SUM({})'.format(mainb), sub_site_format)
 
 #print("There are {} unique clients".format(sum(ssids.values())))
 sorted_ssids = sorted(ssids.items(), key=operator.itemgetter(1), reverse=True)
