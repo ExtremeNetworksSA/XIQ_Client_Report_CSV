@@ -74,14 +74,14 @@ for row in data.values():
     child[mainloc][subloc]['session_count'] += 1
     child[mainloc][subloc]['unique_count'].append(row['client_mac'])
     start_time = row['start_time']
-    #start_time = datetime.datetime.strptime(start_time, '%m/%d/%y %H:%M')
-    start_time = datetime.datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
+    start_time = datetime.datetime.strptime(start_time, '%m/%d/%y %H:%M')
+    #start_time = datetime.datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
     monthlist.append(start_time.strftime('%B'))
     yearlist.append(start_time.strftime('%Y'))
     end_time = row['end_time']
     timelist.append(end_time)
-    #end_time = datetime.datetime.strptime(end_time, '%m/%d/%y %H:%M')
-    end_time = datetime.datetime.strptime(end_time, '%Y-%m-%d %H:%M:%S')
+    end_time = datetime.datetime.strptime(end_time, '%m/%d/%y %H:%M')
+    #end_time = datetime.datetime.strptime(end_time, '%Y-%m-%d %H:%M:%S')
     connected_time = (end_time - start_time).total_seconds()
     child[mainloc][subloc]['connected_time'] += int(connected_time)
     if row['ssid'] not in ssids:
@@ -109,8 +109,8 @@ monthstr += " {}".format(yearset[-1])
 monthstr = "{} - {}".format(max(set(monthlist), key= monthlist.count), max(set(yearlist), key= yearlist.count))
 # Used for start and end times off to the side of report
 timeset = set(timelist)
-#timeset = sorted(timeset, key=lambda timeset: datetime.datetime.strptime(timeset, '%m/%d/%y %H:%M'))
-timeset = sorted(timeset, key=lambda timeset: datetime.datetime.strptime(timeset, '%Y-%m-%d %H:%M:%S'))
+timeset = sorted(timeset, key=lambda timeset: datetime.datetime.strptime(timeset, '%m/%d/%y %H:%M'))
+#timeset = sorted(timeset, key=lambda timeset: datetime.datetime.strptime(timeset, '%Y-%m-%d %H:%M:%S'))
 
 
 print("creating excel report")
