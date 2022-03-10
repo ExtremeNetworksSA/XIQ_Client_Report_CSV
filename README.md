@@ -6,11 +6,8 @@
 This script was written to work with python version 2.7 that comes installed default with mac os as well as the new version of python 3.9 if installed manually. To preform the needed tasks to read the csv and and export to excel a couple modules will need to be installed.  
 These modules are needed in order to run this script. Please see the Setup Section at the bottom for instructions on installing the needed module. 
 
-When running the script, two arguments need to be give
-
-1. The name of the site the report will be generated for. The name of the site should be added within quotes. ```"Retail Store 1234"```
-2. The name of the csv file that is located in the same directory as the HistoricalClient_csvtoexcel.py script.
-
+The downloaded zip file or the exported csv file need to be placed in the InputFile folder. Zip files will be uncompressed to the csv file, then the script will run against all csv files in the InputFile folder. The output excel file will be added to the OutputFile folder. This folder will be created if it does not exist.
+As the script completes each csv file the csv file will be moved to the Archive folder. This folder  will be created if it does not exist. The archive folder will store the previous 10 csv files, any additional files will be deleted by their age. 
 
 ## How to run the script
 
