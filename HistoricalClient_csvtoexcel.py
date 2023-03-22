@@ -28,8 +28,8 @@ def csv_import(filename):
     with open(filename, 'r') as file:
         reader = csv.reader(file, delimiter=',')
         # remove header line from CSV if manually ran
-        next(reader)
-        next(reader)
+        #next(reader)
+        #next(reader)
         loc_params = next(reader)
         # Build list of location dictionaries
         client_list = []
