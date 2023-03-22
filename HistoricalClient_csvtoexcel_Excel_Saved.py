@@ -20,13 +20,16 @@ filename = '{}'.format(args.filename)
 
 PATH = os.path.dirname(os.path.abspath(__file__))
 
+monthlist = []
+yearlist = []
+timelist = []
 
 def csv_import(filename):
     with open(filename, 'r') as file:
         reader = csv.reader(file, delimiter=',')
         # remove header line from CSV if manually ran
-        #next(reader)
-        #next(reader)
+        next(reader)
+        next(reader)
         loc_params = next(reader)
         # Build list of location dictionaries
         client_list = []
@@ -39,73 +42,29 @@ def csv_import(filename):
             client_list.append(data)
         return client_list
 
+def calculate_connected_time(start_time, end_time):
+    global monthlist
+    global yearlist
+    global timelist
+    start_time = datetime.datetime.strptime(start_time, '%m/%d/%y %H:%M')
+    #start_time = datetime.datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
+    monthlist.append(start_time.strftime('%B'))
+    yearlist.append(start_time.strftime('%Y'))
+    timelist.append(end_time)
+    end_time = datetime.datetime.strptime(end_time, '%m/%d/%y %H:%M')
+    #end_time = datetime.datetime.strptime(end_time, '%Y-%m-%d %H:%M:%S')
+    connected_time = (end_time - start_time).total_seconds()
+    return connected_time
+
+
 print('gathering data from csv')
 client_list = csv_import(filename)
 print('processing data')
 
 df = pd.DataFrame(client_list)
-del df['client_ip']
-del df['associate_vlan']
-del df['client_host_name']
-del df['client_os_name']
-del df['bssid']
+df['connected_time'] = df.apply(lambda x: calculate_connected_time(x.start_time, x.end_time), axis=1)
 
-data = df.to_dict('index')
-monthlist = []
-yearlist = []
-timelist = []
-parent = {}
-child = {}
-ssids = {}
-for row in data.values():
-    mainloc = row['location']
-    subloc = row['sublocation']
-    if mainloc not in parent:
-        parent[mainloc] = []
-    if subloc not in parent[mainloc]:
-        parent[mainloc].append(subloc)
-    if mainloc not in child:
-        child[mainloc]={}
-    if subloc not in child[mainloc]:
-        child[mainloc][subloc] = {}
-        child[mainloc][subloc]['session_count'] = 0
-        child[mainloc][subloc]['unique_count'] = []
-        child[mainloc][subloc]['connected_time'] = 0
-    child[mainloc][subloc]['session_count'] += 1
-    child[mainloc][subloc]['unique_count'].append(row['client_mac'])
-    start_time = row['start_time']
-    start_time = datetime.datetime.strptime(start_time, '%m/%d/%y %H:%M')
-    #start_time = datetime.datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
-    monthlist.append(start_time.strftime('%B'))
-    yearlist.append(start_time.strftime('%Y'))
-    end_time = row['end_time']
-    timelist.append(end_time)
-    end_time = datetime.datetime.strptime(end_time, '%m/%d/%y %H:%M')
-    #end_time = datetime.datetime.strptime(end_time, '%Y-%m-%d %H:%M:%S')
-    connected_time = (end_time - start_time).total_seconds()
-    child[mainloc][subloc]['connected_time'] += int(connected_time)
-    if row['ssid'] not in ssids:
-        ssids[row['ssid']] = []
-    ssids[row['ssid']].append(row['client_mac'])
-
-for mainloc in child:
-    for subloc in child[mainloc]:
-        set_list = set(child[mainloc][subloc]['unique_count'])
-        child[mainloc][subloc]['unique_count'] = len(set_list)
-
-for ssid in ssids:
-    set_list = set(ssids[ssid])
-    ssids[ssid]=len(set_list)
-
-'''
-monthset = set(monthlist)
-monthset = sorted(monthset, key=lambda monthset: datetime.datetime.strptime(monthset, "%B"))
-yearset = set(yearlist)
-yearset = sorted(yearset, key=lambda yearset: datetime.datetime.strptime(yearset, "%Y"))
-monthstr = ''
-monthstr += "{} -".format(monthset[-1])
-monthstr += " {}".format(yearset[-1])
-'''
+  
 monthstr = "{} - {}".format(max(set(monthlist), key= monthlist.count), max(set(yearlist), key= yearlist.count))
 # Used for start and end times off to the side of report
 timeset = set(timelist)
@@ -189,12 +148,27 @@ main_site_location_format = workbook.add_format({
     'align': 'left'
 })
 sub_site_format = workbook.add_format({
+    'bottom':1,
     'align':'right',
     'font_size': 10,
+    'bottom_color': '#800080',
     'num_format': '#,###,##0'
 })
 sub_site_location_format = workbook.add_format({
+    'bottom':1,
     'align':'left',
+    'font_size': 10,
+    'bottom_color': '#800080'
+})
+ssid_format = workbook.add_format({
+    'align':'right',
+    'font_size': 10,
+    'bg_color': '#C0C0C0',
+    'num_format': '#,###,##0'
+})
+ssid_name_format = workbook.add_format({
+    'align':'left',
+    'bg_color': '#C0C0C0',
     'font_size': 10
 })
 bold_only_format = workbook.add_format({
@@ -202,74 +176,94 @@ bold_only_format = workbook.add_format({
 })
 
 # Merge cells on row 1.
-worksheet.merge_range('A1:E1', '{} - WiFi Statistics Summary Report'.format(monthstr), merge_format)
+worksheet.merge_range('A1:E1', '{} - WiFi Statistics Summary Report'.format(monthstr), merge_format) #Change to F1 if using time
 worksheet.merge_range('A2:A7','{}'.format(sitename),Label_format)
 worksheet.merge_range('B2:E2','')
 #worksheet.write_url('B2', 'http://www.library.ca.gov/Content/pdf/services/toLibraries/SurveyInstructions2017-18.pdf', centered_hyp_format)
+
+# Add Total
 worksheet.write('C4', 'Client User Summary',bold_format)
 worksheet.write('C5', 'Number of Sessions', bottom_border_title)
 worksheet.write('D5', 'Number of Users', bottom_border_title)
-#worksheet.write('D5', 'Sum of Time (hours)', bottom_border_title)
-#worksheet.write('E5', 'Sum of Time (minutes)', bottom_border_title)
+#worksheet.write('E5', 'Sum of Time (hours)', bottom_border_title)
+#worksheet.write('F5', 'Sum of Time (minutes)', bottom_border_title)
+worksheet.write('C6', len(df.client_mac))
+worksheet.write('D6', len(df['client_mac'].unique()))
+#worksheet.write('E6', round(df['connected_time'].sum()/3600))
+#worksheet.write('F6', round(df['connected_time'].sum()/60))
+
 
 # Build Table header
 worksheet.write('A8', 'Locations', header_format)
-worksheet.write('B8', '', header_format ) # remove if adding client sum
-worksheet.write('C8', 'Number of Sessions', header_format) # change to B8 if adding client sum
-worksheet.write('D8', 'Number or Users', header_format) # change to C8 if adding client sum
+worksheet.write('B8', 'SSID', header_format ) 
+worksheet.write('C8', 'Number of Sessions', header_format) 
+worksheet.write('D8', 'Number or Users', header_format) 
 worksheet.write('E8', '', header_format) # remove if adding client sum
-#worksheet.write('D8', 'Sum of Time (hours)', header_format)
-#worksheet.write('E8', 'Sum of Time (minutes)', header_format)
+#worksheet.write('E8', 'Sum of Time (hours)', header_format)
+#worksheet.write('F8', 'Sum of Time (minutes)', header_format)
 
 # Print Start and End times off to the side of the Report
-worksheet.write('G3', 'Time Stamps from Client Summary', bold_only_format)
-worksheet.write('G4', 'Start time:')
-worksheet.write('H4', ' {}'.format(timeset[0]))
-worksheet.write('G5', 'End time:')
-worksheet.write('H5',' {}'.format(timeset[-1]))
+worksheet.write('G3', 'Time Stamps from Client Summary', bold_only_format) # Change to H if adding Times
+worksheet.write('G4', 'Start time:') # Change to H if adding Times
+worksheet.write('H4', ' {}'.format(timeset[0])) # Change to I if adding Times
+worksheet.write('G5', 'End time:') # Change to H if adding Times
+worksheet.write('H5',' {}'.format(timeset[-1])) # Change to I if adding Times
 
 cursor_line = 8
 
-main_site_list = []
-for name, locations in sorted (parent.items()):
-    main_session_count = 0
-    main_unique_count = 0
-    main_connected_time = 0
-    for site in locations:
-        main_session_count += child[name][site]['session_count']
-        main_unique_count += child[name][site]['unique_count']
-        main_connected_time += child[name][site]['connected_time']
+location_list = df.location.unique().tolist()
+
+for location in location_list:
+    filt = df['location'] == location
+    location_df = df.loc[filt]
     cursor_line += 1
-    main_site_list.append(cursor_line)
-    worksheet.write('A{}'.format(cursor_line), "    {}".format(name), main_site_location_format)
+    main_location_name = (location_df['location'].unique()[0])
+    main_location_sessions = len(location_df.client_mac)
+    main_location_unique_count = len(location_df['client_mac'].unique())
+    worksheet.write('A{}'.format(cursor_line), "    {}".format(main_location_name), main_site_location_format)
     worksheet.write('B{}'.format(cursor_line), "", main_site_location_format)
-    worksheet.write('C{}'.format(cursor_line), main_session_count, main_site_format) # change to B{} if adding client sum
-    worksheet.write('D{}'.format(cursor_line), main_unique_count, main_site_format) # change to C{} if adding client sum
-    worksheet.write('E{}'.format(cursor_line), "", main_site_location_format)
-    #worksheet.write('D{}'.format(cursor_line), round(main_connected_time/3600), main_site_format)
-    #worksheet.write('E{}'.format(cursor_line), round(main_connected_time/60), main_site_format)
-    for site in locations:
+    worksheet.write('C{}'.format(cursor_line), main_location_sessions, main_site_format) 
+    worksheet.write('D{}'.format(cursor_line), main_location_unique_count, main_site_format) 
+    worksheet.write('E{}'.format(cursor_line), "", main_site_location_format)# remove if adding client sum
+    #worksheet.write('E{}'.format(cursor_line), round(location_df['connected_time'].sum()/3600), main_site_format)
+    #worksheet.write('F{}'.format(cursor_line), round(location_df['connected_time'].sum()/60), main_site_format)
+    ssid_loc_list = location_df.ssid.unique().tolist()
+    for ssid_loc in ssid_loc_list:
+        filt = location_df['ssid'] == ssid_loc
+        ssid_loc_df = location_df[filt]
         cursor_line += 1
-        worksheet.write('A{}'.format(cursor_line), "        {}".format(site), sub_site_location_format)
-        worksheet.write('C{}'.format(cursor_line), child[name][site]['session_count'], sub_site_format) # change to B{} if adding client sum 
-        worksheet.write('D{}'.format(cursor_line), child[name][site]['unique_count'], sub_site_format) # change to C{} if adding client sum
-        #worksheet.write('D{}'.format(cursor_line), round(child[name][site]['connected_time']/3600), sub_site_format)
-        #worksheet.write('E{}'.format(cursor_line), round(child[name][site]['connected_time']/60), sub_site_format)
-main_site_str = ''
-for row in main_site_list:
-    main_site_str += '<Column>{},'.format(row)
-# Number of Sessions Total
-mainb = main_site_str.replace('<Column>','C') # change to Cs to Bs if adding client sum
-worksheet.write('C6', '=SUM({})'.format(mainb), sub_site_format) # change to Cs to Bs if adding client sum
-# Number of Users Total
-mainb = main_site_str.replace('<Column>','D') # change to Ds to Cs if adding client sum
-worksheet.write('D6', '=SUM({})'.format(mainb), sub_site_format) # change to Ds to Cs if adding client sum
-## Sum of Time (hours) Total
-#mainb = main_site_str.replace('<Column>','D')
-#worksheet.write('D6', '=SUM({})'.format(mainb), sub_site_format)
-## Sum of Time (minutes) Total
-#mainb = main_site_str.replace('<Column>','E')
-#worksheet.write('E6', '=SUM({})'.format(mainb), sub_site_format)
+        ssid_loc_name = (ssid_loc_df['ssid'].unique()[0])
+        ssid_loc_sessions = len(ssid_loc_df.client_mac)
+        ssid_loc_unique_count = len(ssid_loc_df['client_mac'].unique())
+        worksheet.write('A{}'.format(cursor_line), "", ssid_name_format)
+        worksheet.write('B{}'.format(cursor_line), "    {}".format(ssid_loc_name), ssid_name_format)
+        worksheet.write('C{}'.format(cursor_line), ssid_loc_sessions, ssid_format) # change to B{} if adding client sum 
+        worksheet.write('D{}'.format(cursor_line), ssid_loc_unique_count, ssid_format) # change to C{} if adding client sum
+        worksheet.write('E{}'.format(cursor_line), "", ssid_name_format)
+        #worksheet.write('E{}'.format(cursor_line), round(ssid_loc_df['connected_time'].sum()/3600), ssid_name_format)
+        #worksheet.write('F{}'.format(cursor_line), round(ssid_loc_df['connected_time'].sum()/60), ssid_name_format)
+    sub_location_list = location_df.sublocation.unique().tolist()
+    for sub_location in sub_location_list:
+        filt = location_df['sublocation'] == sub_location
+        sub_loc_df = location_df[filt]
+        cursor_line += 1
+        sub_loc_name = (sub_loc_df['sublocation'].unique()[0])
+        sub_loc_sessions = len(sub_loc_df.client_mac)
+        sub_loc_unique_count = len(sub_loc_df['client_mac'].unique())
+        worksheet.write('A{}'.format(cursor_line), "        {}".format(sub_loc_name), sub_site_location_format)
+        worksheet.write('B{}'.format(cursor_line), "", sub_site_location_format)
+        worksheet.write('C{}'.format(cursor_line), sub_loc_sessions, sub_site_format) 
+        worksheet.write('D{}'.format(cursor_line), sub_loc_unique_count, sub_site_format)
+        worksheet.write('E{}'.format(cursor_line), "", sub_site_location_format)
+        #worksheet.write('E{}'.format(cursor_line), round(sub_loc_df['connected_time'].sum()/3600), sub_site_format)
+        #worksheet.write('F{}'.format(cursor_line), round(sub_loc_df['connected_time'].sum()/60), sub_site_format)
+        
+ssids = {}
+ssid_list = df.ssid.unique().tolist()
+for ssid in ssid_list:
+    filt = df['ssid'] == ssid
+    ssid_df = df[filt]
+    ssids[ssid] = len(ssid_df['client_mac'].unique())
 
 #print("There are {} unique clients".format(sum(ssids.values())))
 sorted_ssids = sorted(ssids.items(), key=operator.itemgetter(1), reverse=True)
@@ -304,5 +298,7 @@ cursor_line += 1
 chart.set_style(10)
 chart.set_size({'width': 540, 'height': 432})
 worksheet.insert_chart('A{}'.format(cursor_line), chart, {'x_offset': 25, 'y_offset': 15})
+
+
 workbook.close()
 print("completed - saved as {}".format(excelname))
