@@ -28,8 +28,8 @@ def csv_import(filename):
     with open(filename, 'r') as file:
         reader = csv.reader(file, delimiter=',')
         # remove header line from CSV if manually ran
-        #next(reader)
-        #next(reader)
+        next(reader)
+        next(reader)
         loc_params = next(reader)
         # Build list of location dictionaries
         client_list = []
@@ -185,8 +185,8 @@ worksheet.merge_range('B2:E2','')
 worksheet.write('C4', 'Client User Summary',bold_format)
 worksheet.write('C5', 'Number of Sessions', bottom_border_title)
 worksheet.write('D5', 'Number of Users', bottom_border_title)
-worksheet.write('E5', 'Sum of Time (hours)', bottom_border_title)
-worksheet.write('F5', 'Sum of Time (minutes)', bottom_border_title)
+#worksheet.write('E5', 'Sum of Time (hours)', bottom_border_title)
+#worksheet.write('F5', 'Sum of Time (minutes)', bottom_border_title)
 worksheet.write('C6', len(df.client_mac))
 worksheet.write('D6', len(df['client_mac'].unique()))
 #worksheet.write('E6', round(df['connected_time'].sum()/3600))
@@ -227,6 +227,21 @@ for location in location_list:
     worksheet.write('E{}'.format(cursor_line), "", main_site_location_format)# remove if adding client sum
     #worksheet.write('E{}'.format(cursor_line), round(location_df['connected_time'].sum()/3600), main_site_format)
     #worksheet.write('F{}'.format(cursor_line), round(location_df['connected_time'].sum()/60), main_site_format)
+    ssid_loc_list = location_df.ssid.unique().tolist()
+    for ssid_loc in ssid_loc_list:
+        filt = location_df['ssid'] == ssid_loc
+        ssid_loc_df = location_df[filt]
+        cursor_line += 1
+        ssid_loc_name = (ssid_loc_df['ssid'].unique()[0])
+        ssid_loc_sessions = len(ssid_loc_df.client_mac)
+        ssid_loc_unique_count = len(ssid_loc_df['client_mac'].unique())
+        worksheet.write('A{}'.format(cursor_line), "", ssid_name_format)
+        worksheet.write('B{}'.format(cursor_line), "    {}".format(ssid_loc_name), ssid_name_format)
+        worksheet.write('C{}'.format(cursor_line), ssid_loc_sessions, ssid_format) # change to B{} if adding client sum 
+        worksheet.write('D{}'.format(cursor_line), ssid_loc_unique_count, ssid_format) # change to C{} if adding client sum
+        worksheet.write('E{}'.format(cursor_line), "", ssid_name_format)
+        #worksheet.write('E{}'.format(cursor_line), round(ssid_loc_df['connected_time'].sum()/3600), ssid_name_format)
+        #worksheet.write('F{}'.format(cursor_line), round(ssid_loc_df['connected_time'].sum()/60), ssid_name_format)
     sub_location_list = location_df.sublocation.unique().tolist()
     for sub_location in sub_location_list:
         filt = location_df['sublocation'] == sub_location
@@ -242,21 +257,6 @@ for location in location_list:
         worksheet.write('E{}'.format(cursor_line), "", sub_site_location_format)
         #worksheet.write('E{}'.format(cursor_line), round(sub_loc_df['connected_time'].sum()/3600), sub_site_format)
         #worksheet.write('F{}'.format(cursor_line), round(sub_loc_df['connected_time'].sum()/60), sub_site_format)
-        ssid_loc_list = sub_loc_df.ssid.unique().tolist()
-        for ssid_loc in ssid_loc_list:
-            filt = sub_loc_df['ssid'] == ssid_loc
-            ssid_loc_df = sub_loc_df[filt]
-            cursor_line += 1
-            ssid_loc_name = (ssid_loc_df['ssid'].unique()[0])
-            ssid_loc_sessions = len(ssid_loc_df.client_mac)
-            ssid_loc_unique_count = len(ssid_loc_df['client_mac'].unique())
-            worksheet.write('A{}'.format(cursor_line), "", ssid_name_format)
-            worksheet.write('B{}'.format(cursor_line), "            {}".format(ssid_loc_name), ssid_name_format)
-            worksheet.write('C{}'.format(cursor_line), ssid_loc_sessions, ssid_format) # change to B{} if adding client sum 
-            worksheet.write('D{}'.format(cursor_line), ssid_loc_unique_count, ssid_format) # change to C{} if adding client sum
-            worksheet.write('E{}'.format(cursor_line), "", ssid_name_format)
-            #worksheet.write('E{}'.format(cursor_line), round(ssid_loc_df['connected_time'].sum()/3600), ssid_name_format)
-            #worksheet.write('F{}'.format(cursor_line), round(ssid_loc_df['connected_time'].sum()/60), ssid_name_format)
         
 ssids = {}
 ssid_list = df.ssid.unique().tolist()
