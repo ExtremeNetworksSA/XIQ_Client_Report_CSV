@@ -63,7 +63,10 @@ print('processing data')
 
 df = pd.DataFrame(client_list)
 df['connected_time'] = df.apply(lambda x: calculate_connected_time(x.start_time, x.end_time), axis=1)
-
+df['session_date'] = df.apply(lambda x: datetime.datetime.strptime(x.end_time, '%Y-%m-%d %H:%M:%S'), axis=1)
+  
+DFList = [group[1] for group in df.groupby(df.session_date.dt.date)]
+df['session_date'] = df.apply(lambda x: x.session_date.strftime('%d-%b'), axis=1)
   
 monthstr = "{} - {}".format(max(set(monthlist), key= monthlist.count), max(set(yearlist), key= yearlist.count))
 # Used for start and end times off to the side of report
@@ -80,15 +83,14 @@ workbook.set_size(1600, 2000)
 worksheet = workbook.add_worksheet('Report')
 # Widen the first column to make the text clearer.
 worksheet.set_column('A:A', 20.5)
-worksheet.set_column('B:F', 14.8)
-worksheet.set_column('K:N', 22)
+worksheet.set_column(1,35, 14.8)
+#worksheet.set_column('K:N', 22)
 worksheet.set_row(1, 13)
 worksheet.set_row(2, 13)
 worksheet.set_row(3, 13)
 worksheet.set_row(4, 13)
 worksheet.set_row(5, 13)
 worksheet.set_row(6, 13)
-worksheet.set_column('K:L', None, None, {'hidden': True})
 
 # Create a format to use in the merged range.
 merge_format = workbook.add_format({
@@ -118,6 +120,11 @@ centered_hyp_format = workbook.add_format({
     'color': '#0000EE',
     'underline': 1,
     'font_size': 10
+})
+right_justified_format = workbook.add_format({
+    'align': 'right',
+    'font_size': 10,
+    'bold': 1
 })
 bold_format = workbook.add_format({
     'align': 'center',
@@ -199,15 +206,23 @@ worksheet.write('B8', 'SSID', header_format )
 worksheet.write('C8', 'Number of Sessions', header_format) 
 worksheet.write('D8', 'Number or Users', header_format) 
 worksheet.write('E8', '', header_format) # remove if adding client sum
-#worksheet.write('E8', 'Sum of Time (hours)', header_format)
-#worksheet.write('F8', 'Sum of Time (minutes)', header_format)
+#worksheet.write('F8', 'Total Users per Day', bold_format)
+total_columns = 5
+for count in range(0, len(DFList), 1):
+    column = count + 5
+    worksheet.write(5,column,(DFList[count]['session_date'].iloc[0].strftime('%d-%b')),right_justified_format)
+    worksheet.write(6,column,'Number of Users', header_format)
+    worksheet.write(7,column, len(DFList[count]['client_mac'].unique()), bold_only_format)
+    total_columns = column
+
+
 
 # Print Start and End times off to the side of the Report
-worksheet.write('G3', 'Time Stamps from Client Summary', bold_only_format) # Change to H if adding Times
-worksheet.write('G4', 'Start time:') # Change to H if adding Times
-worksheet.write('H4', ' {}'.format(timeset[0])) # Change to I if adding Times
-worksheet.write('G5', 'End time:') # Change to H if adding Times
-worksheet.write('H5',' {}'.format(timeset[-1])) # Change to I if adding Times
+worksheet.write(4, total_columns+2, 'Time Stamps from Client Summary', bold_only_format) # Change to H if adding Times
+worksheet.write(5,total_columns+2, 'Start time:') # Change to H if adding Times
+worksheet.write(5,total_columns+3, ' {}'.format(timeset[0])) # Change to I if adding Times
+worksheet.write(6,total_columns+2, 'End time:') # Change to H if adding Times
+worksheet.write(6,total_columns+3,' {}'.format(timeset[-1])) # Change to I if adding Times
 
 cursor_line = 8
 
@@ -224,9 +239,16 @@ for location in location_list:
     worksheet.write('B{}'.format(cursor_line), "", main_site_location_format)
     worksheet.write('C{}'.format(cursor_line), main_location_sessions, main_site_format) 
     worksheet.write('D{}'.format(cursor_line), main_location_unique_count, main_site_format) 
-    worksheet.write('E{}'.format(cursor_line), "", main_site_location_format)# remove if adding client sum
-    #worksheet.write('E{}'.format(cursor_line), round(location_df['connected_time'].sum()/3600), main_site_format)
-    #worksheet.write('F{}'.format(cursor_line), round(location_df['connected_time'].sum()/60), main_site_format)
+    worksheet.write('E{}'.format(cursor_line), "", main_site_location_format)
+
+    for count in range(0,len(DFList),1):
+        column = count + 5
+        date = DFList[count]['session_date'].iloc[0].strftime('%d-%b')
+        filt = location_df['session_date'] == date
+        daily_loc_df = location_df[filt]
+        daily_location_unique_count = len(daily_loc_df['client_mac'].unique())
+        worksheet.write(cursor_line-1, column, daily_location_unique_count,main_site_location_format)
+
     ssid_loc_list = location_df.ssid.unique().tolist()
     for ssid_loc in ssid_loc_list:
         filt = location_df['ssid'] == ssid_loc
@@ -240,8 +262,13 @@ for location in location_list:
         worksheet.write('C{}'.format(cursor_line), ssid_loc_sessions, ssid_format) # change to B{} if adding client sum 
         worksheet.write('D{}'.format(cursor_line), ssid_loc_unique_count, ssid_format) # change to C{} if adding client sum
         worksheet.write('E{}'.format(cursor_line), "", ssid_name_format)
-        #worksheet.write('E{}'.format(cursor_line), round(ssid_loc_df['connected_time'].sum()/3600), ssid_name_format)
-        #worksheet.write('F{}'.format(cursor_line), round(ssid_loc_df['connected_time'].sum()/60), ssid_name_format)
+        for count in range(0,len(DFList),1):
+            column = count + 5
+            date = DFList[count]['session_date'].iloc[0].strftime('%d-%b')
+            filt = ssid_loc_df['session_date'] == date
+            daily_ssid_df = ssid_loc_df[filt]
+            daily_ssid_unique_count = len(daily_ssid_df['client_mac'].unique())
+            worksheet.write(cursor_line-1, column, daily_ssid_unique_count,ssid_name_format)
     sub_location_list = location_df.sublocation.unique().tolist()
     for sub_location in sub_location_list:
         filt = location_df['sublocation'] == sub_location
@@ -255,8 +282,13 @@ for location in location_list:
         worksheet.write('C{}'.format(cursor_line), sub_loc_sessions, sub_site_format) 
         worksheet.write('D{}'.format(cursor_line), sub_loc_unique_count, sub_site_format)
         worksheet.write('E{}'.format(cursor_line), "", sub_site_location_format)
-        #worksheet.write('E{}'.format(cursor_line), round(sub_loc_df['connected_time'].sum()/3600), sub_site_format)
-        #worksheet.write('F{}'.format(cursor_line), round(sub_loc_df['connected_time'].sum()/60), sub_site_format)
+        for count in range(0,len(DFList),1):
+            column = count + 5
+            date = DFList[count]['session_date'].iloc[0].strftime('%d-%b')
+            filt = sub_loc_df['session_date'] == date
+            daily_sub_loc_df = sub_loc_df[filt]
+            daily_ssid_unique_count = len(daily_sub_loc_df['client_mac'].unique())
+            worksheet.write(cursor_line-1, column, daily_ssid_unique_count,sub_site_location_format)
         
 ssids = {}
 ssid_list = df.ssid.unique().tolist()
@@ -283,22 +315,23 @@ if len(sorted_ssids) > 9:
         sorted_ssids.remove(sorted_ssids[x])
     sorted_ssids.append(tuple(('OTHER SSIDs', other_total)))
 for ssid in sorted_ssids:
-    worksheet.write('K{}'.format(ssidline),'{} - {:,}'.format(ssid[0], ssid[1]))
-    worksheet.write('L{}'.format(ssidline),ssid[1])
+    worksheet.write(ssidline,total_columns+7,'{} - {:,}'.format(ssid[0], ssid[1]))
+    worksheet.write(ssidline,total_columns+8 ,ssid[1])
     ssidline+=1
 
 # Create a chart object.
 chart = workbook.add_chart({'type': 'pie'})
 chart.show_hidden_data()
 chart.add_series({
-    'categories': '=Report!$K${}:$K${}'.format(cursor_line,cursor_line+len(sorted_ssids)-1),
-    'values':     '=Report!$L${}:$L${}'.format(cursor_line,cursor_line+len(sorted_ssids)-1),
+    'categories': ['Report', cursor_line, total_columns+7, cursor_line+len(sorted_ssids)-1, total_columns+7],
+    'values':     ['Report', cursor_line, total_columns+8, cursor_line+len(sorted_ssids)-1, total_columns+8],
 })
 cursor_line += 1
 chart.set_style(10)
 chart.set_size({'width': 540, 'height': 432})
 worksheet.insert_chart('A{}'.format(cursor_line), chart, {'x_offset': 25, 'y_offset': 15})
 
+worksheet.set_column(total_columns+7,total_columns+8, None, None, {'hidden': True})
 
 workbook.close()
 print("completed - saved as {}".format(excelname))
